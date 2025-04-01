@@ -10,6 +10,10 @@ from django.contrib.auth.models import User
 from rest_framework import status
 from students.models import StudentProfile
 from django.contrib.auth import authenticate, logout
+from .models import Task, Attachment
+from django.shortcuts import get_object_or_404
+import mimetypes
+
 
 class CamundaLoginView(APIView):
     def post(self, request):
@@ -23,20 +27,19 @@ class CamundaLoginView(APIView):
         if user is None:
             return Response({"error": "Invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED)
 
-        # Проверяем, существует ли пользователь в Django
         try:
             user = User.objects.get(username=username)
         except User.DoesNotExist:
             return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
 
-        # Запрос к Camunda REST API
+       
         camunda_url = f"http://localhost:8080/engine-rest/user/{username}/profile"
         response = requests.get(camunda_url)
 
         if response.status_code != 200:
             return Response({"error": "User not found in Camunda"}, status=status.HTTP_404_NOT_FOUND)
 
-        # Получаем StudentProfile, если он существует
+       
         try:
             student_profile = StudentProfile.objects.get(user=user)
             student_data = {
@@ -47,8 +50,7 @@ class CamundaLoginView(APIView):
                 "phone": student_profile.telephone_number,
             }
         except StudentProfile.DoesNotExist:
-            student_data = None  # Если профиля нет, не передаем данные
-
+            student_data = None 
         return Response({
             "message": "Login successful",
             "username": username,
@@ -80,7 +82,9 @@ def start_process(request):
     response = requests.post(f"{CAMUNDA_BASE_URL}/process-definition/key/Process_student/start", json=data)
 
     if response.status_code in [200, 201]:
-        return Response({"message": "Process started!", "processInstanceId": response.json().get("id")})
+        process_instance_id = response.json().get("id") 
+        task = Task.objects.create(process_id=process_instance_id)
+        return Response({"message": "Process started!", "processInstanceId": response.json().get("id"), "taskId": task.id})
     return Response(response.json(), status=response.status_code)
 
 @api_view(["GET"])
@@ -94,16 +98,43 @@ def get_user_tasks(request):
 
 @api_view(["GET"])
 def get_task_details(request, task_id):
-    """Получает данные конкретной задачи (переменные формы)"""
     response = requests.get(f"{CAMUNDA_BASE_URL}/task/{task_id}/form-variables")
 
     if response.status_code == 200:
         return Response(response.json())
     return Response(response.json(), status=response.status_code)
 
+@api_view(["GET"])
+def get_dean_task_details(request, task_id):
+    response = requests.get(f"{CAMUNDA_BASE_URL}/task/{task_id}/form-variables")
+    
+    if response.status_code == 200:
+        task_details = response.json()
+        source_process_id = task_details.get("sourceProcessId", {}).get("value")
+
+        if source_process_id:
+            try:
+                task = Task.objects.get(process_id=source_process_id)
+            except Task.DoesNotExist:
+                return Response({"message": "Task with matching process_id not found"}, status=status.HTTP_404_NOT_FOUND)
+            
+            attachments = Attachment.objects.filter(task=task)
+            attachments_data = [{"id": attachment.id, "file_url": attachment.file.url} for attachment in attachments]
+            return Response({
+                "message": "Attachments found",
+                "attachments": attachments_data
+            }, status=status.HTTP_200_OK)
+        
+        return Response({"message": "sourceProcessId not found in Camunda response"}, status=status.HTTP_400_BAD_REQUEST)
+
+    return Response({
+        "message": "Error fetching task details from Camunda",
+        "error": response.json()
+    }, status=response.status_code)
+
+
 @api_view(["POST"])
 def complete_task(request, task_id):
-    """Завершает задачу и отправляет данные в Camunda"""
     data = {"variables": request.data.get("variables", {})}
     response = requests.post(f"{CAMUNDA_BASE_URL}/task/{task_id}/complete", json=data)
 
@@ -111,41 +142,53 @@ def complete_task(request, task_id):
         return Response({"message": "Задача завершена!"})
     return Response(response.json(), status=response.status_code)
 
-# @api_view(["POST"])
-# @csrf_exempt
-# def upload_task_attachment(request, task_id):
-#     if request.method == "POST":
-#         if "file" not in request.FILES:
-#             return JsonResponse({"error": "Файл не передан!"}, status=400)
-
-#         file = request.FILES["file"]
-#         file_data = file.read()
-#         encoded_file = base64.b64encode(file_data).decode("utf-8")
-
-#         camunda_url = f"http://localhost:8080/engine-rest/task/{task_id}/attachment/create"
-#         headers = {"Content-Type": "application/json"}
-
-#         payload = {
-#             "name": file.name,
-#             "type": file.content_type,
-#             "taskId": task_id,
-#             "content": encoded_file,
-#         }
-
-#         response = requests.post(camunda_url, json=payload, headers=headers)
-
-#         if response.status_code == 200 or response.status_code == 204:
-#             return JsonResponse({"message": "Файл успешно загружен!"})
-#         else:
-#             return JsonResponse({"error": response.json()}, status=response.status_code)
-
-#     return JsonResponse({"error": "Метод не поддерживается!"}, status=405)
-
-# @api_view(["GET"])
-# def download_task_attachment(request, task_id, attachment_id):
-#     """Скачивает файл, прикрепленный к задаче"""
-#     response = requests.get(f"{CAMUNDA_BASE_URL}/task/{task_id}/attachment/{attachment_id}/data", stream=True)
+@api_view(["POST"])
+def upload_attachment(request, task_id):
+    try:
+        task = Task.objects.get(id=task_id)
+    except Task.DoesNotExist:
+        return Response({"message": "Task not found"}, status=status.HTTP_404_NOT_FOUND)
     
-#     if response.status_code == 200:
-#         return FileResponse(response.raw, as_attachment=True, filename=f"attachment_{attachment_id}.bin")
-#     return Response(response.json(), status=response.status_code)
+
+    file = request.FILES.get("file")
+    
+    if not file:
+        return Response({"message": "No file provided"}, status=status.HTTP_400_BAD_REQUEST)
+    
+    
+    attachment = Attachment.objects.create(task=task, file=file)
+    
+    return Response({"message": "Attachment uploaded successfully", "attachment_id": attachment.id}, status=status.HTTP_201_CREATED)
+
+
+@api_view(["GET"])
+def get_attachments(request, task_id):
+    try:
+        task = Task.objects.get(id=task_id)
+    except Task.DoesNotExist:
+        return Response({"message": "Task not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    attachments = task.attachment_set.all()
+
+    attachment_data = [
+        {
+            "id": attachment.id,
+            "file_url": request.build_absolute_uri(attachment.file.url),
+            "view_url": request.build_absolute_uri(f"/attachments/{attachment.id}/view/") 
+        }
+        for attachment in attachments
+    ]
+
+    return Response({"message": "Attachments found", "attachments": attachment_data}, status=status.HTTP_200_OK)
+
+
+@api_view(["GET"])
+def view_attachment(request, attachment_id):
+    attachment = get_object_or_404(Attachment, id=attachment_id)
+    
+    file_path = attachment.file.path
+    file_mime_type, _ = mimetypes.guess_type(file_path)
+
+    response = FileResponse(open(file_path, "rb"), content_type=file_mime_type)
+    response["Content-Disposition"] = "inline" 
+    return response
