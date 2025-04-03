@@ -9,6 +9,7 @@ from rest_framework.views import APIView
 from django.contrib.auth.models import User
 from rest_framework import status
 from students.models import StudentProfile
+from dean_managers.models import ManagerProfile
 from django.contrib.auth import authenticate, logout
 from .models import Task, Attachment
 from django.shortcuts import get_object_or_404
@@ -32,30 +33,32 @@ class CamundaLoginView(APIView):
         except User.DoesNotExist:
             return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
 
-       
+        user_id = user.id  
+
         camunda_url = f"http://localhost:8080/engine-rest/user/{username}/profile"
         response = requests.get(camunda_url)
 
         if response.status_code != 200:
             return Response({"error": "User not found in Camunda"}, status=status.HTTP_404_NOT_FOUND)
 
-       
-        try:
-            student_profile = StudentProfile.objects.get(user=user)
-            student_data = {
-                "kbtu_id": student_profile.kbtu_id,
-                "school": student_profile.school,
-                "speciality": student_profile.speciality,
-                "course": student_profile.course,
-                "phone": student_profile.telephone_number,
-            }
-        except StudentProfile.DoesNotExist:
-            student_data = None 
+        role = None
+        student_profile = StudentProfile.objects.filter(user_id=user_id).first()
+        manager_profile = ManagerProfile.objects.filter(user_id=user_id).first()
+
+        if student_profile:
+            role = "student"
+        elif manager_profile:
+            role = "dean manager"
+        else:
+            role = "unknown"
+
         return Response({
             "message": "Login successful",
             "username": username,
-            "student_profile": student_data
+            "user_id": user_id,
+            "role": role
         }, status=status.HTTP_200_OK)
+
 
 
 class CamundaLogoutView(APIView):
