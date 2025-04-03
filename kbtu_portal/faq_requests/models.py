@@ -13,8 +13,8 @@ class FAQRequest(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     
     def save(self, *args, **kwargs):
-        super().save(*args, **kwargs)  # Сначала сохраняем объект
-        if self.published and self.answer:  # Проверяем, опубликован ли он и есть ли ответ
+        super().save(*args, **kwargs)  
+        if self.published and self.answer: 
             FAQ.objects.get_or_create(
                 question=self.description,
                 answer=self.answer

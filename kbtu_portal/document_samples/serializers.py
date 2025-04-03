@@ -2,7 +2,9 @@ from rest_framework import serializers, generics
 from .models import InvitationLetter, CourseRegistrationApplication
 
 class CourseRegistrationApplicationSerializer(serializers.ModelSerializer):
-    student_name = serializers.CharField(source='student.full_name', read_only=True)
+    first_name = serializers.CharField(source='student.first_name', read_only=True)
+    last_name = serializers.CharField(source='student.last_name', read_only=True)
+    middle_name = serializers.CharField(source='student.middle_name', read_only=True)
     kbtu_id = serializers.CharField(source='student.kbtu_id', read_only=True)
     course = serializers.IntegerField(source='student.course', read_only=True)
     speciality = serializers.CharField(source='student.speciality', read_only=True)
@@ -19,7 +21,7 @@ class InvitationLetterSerializer(serializers.ModelSerializer):
     speciality = serializers.CharField(source='student.speciality', read_only=True)
     first_name = serializers.CharField(source='student.first_name', read_only=True)
     last_name = serializers.CharField(source='student.last_name', read_only=True)
-    middle_name = serializers.CharField(source='student.middle_name', read_only=True)  # Если middle_name в модели StudentProfile
+    middle_name = serializers.CharField(source='student.middle_name', read_only=True) 
     current_year = serializers.IntegerField(read_only=True)
 
     class Meta:

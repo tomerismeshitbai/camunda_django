@@ -14,7 +14,10 @@ def generate_course_registration_pdf(application_id):
     student = application.student
 
     response = HttpResponse(content_type='application/pdf')
-    response['Content-Disposition'] = f'attachment; filename="Заявление_на_регистрацию_дисциплины_{student.full_name}_{student.kbtu_id}.pdf"'
+    response['Content-Disposition'] =    f'attachment; filename="Заявление_на_регистрацию_дисциплины_'
+    f'{student.last_name}_{student.first_name}'
+    f'_{student.middle_name if student.middle_name else ""}'
+    f'_{student.kbtu_id}.pdf"'
 
     p = canvas.Canvas(response, pagesize=A4)
     width, height = A4
@@ -28,7 +31,11 @@ def generate_course_registration_pdf(application_id):
     # **Данные студента**
     p.drawString(50, height - 100, f"от студента {student.course}г.о.")
     p.drawString(50, height - 120, f"ОП {student.speciality}")
-    p.drawString(50, height - 140, f"{student.full_name}")
+    p.drawString(
+    50, height - 140, 
+    f"{student.last_name} {student.first_name} {student.middle_name if student.middle_name else ''}".strip()
+)
+
     p.drawString(50, height - 160, f"Сот. номер: {student.telephone_number}")
     p.drawString(50, height - 180, f"e-mail: {student.email}")
 
@@ -50,7 +57,11 @@ def generate_course_registration_pdf(application_id):
 
     # **Дата и подпись**
     p.drawString(50, y_position - 40, f"Дата: {date.today().strftime('%d.%m.%Y')}")
-    p.drawString(350, y_position - 40, f"Подпись: _______________ ({student.full_name})")
+    p.drawString(
+    350, y_position - 40, 
+    f"Подпись: _______________ ({student.last_name} {student.first_name} {student.middle_name if student.middle_name else ''})".strip()
+)
+
 
     p.showPage()
     p.save()

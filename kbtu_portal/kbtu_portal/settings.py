@@ -46,6 +46,8 @@ INSTALLED_APPS = [
     'faq',
     'faq_requests',
     'document_samples',
+    'dean_managers',
+    'django_filters',
 ]
 
 MIDDLEWARE = [
@@ -130,7 +132,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'Asia/Almaty'
 
 USE_I18N = True
 

@@ -5,9 +5,14 @@ from students.serializers import StudentProfileSerializer
 class StudentProfileDetailView(generics.RetrieveAPIView):
     queryset = StudentProfile.objects.all()
     serializer_class = StudentProfileSerializer
-    lookup_field = 'id' 
+    lookup_field = 'id'
 
 class StudentProfileUpdateView(generics.UpdateAPIView):
     queryset = StudentProfile.objects.all()
     serializer_class = StudentProfileSerializer
     lookup_field = 'id'
+
+class StudentProfileByUserView(generics.RetrieveAPIView):
+    queryset = StudentProfile.objects.all()
+    serializer_class = StudentProfileSerializer
+    lookup_field = 'user_id' 

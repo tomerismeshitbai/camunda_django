@@ -24,10 +24,12 @@ class CourseRegistrationApplication(models.Model):
     semester = models.CharField(max_length=10, choices=SEMESTER_CHOICES)
     courses = models.ManyToManyField(Course)
 
-    created_at = models.DateTimeField(auto_now_add=True)
-
+    created_at = models.DateTimeField(auto_now_add=True) 
+    
     def __str__(self):
-        return f"Заявление {self.student.full_name} ({self.student.kbtu_id})"
+        full_name = f"{self.student.last_name} {self.student.first_name} {self.student.middle_name if self.student.middle_name else ''}".strip()
+        return f"Заявление {full_name} ({self.student.kbtu_id})"
+
 
 
 class InvitationLetter(models.Model):

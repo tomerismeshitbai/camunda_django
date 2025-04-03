@@ -19,6 +19,7 @@ schema_view = get_schema_view(
 urlpatterns = [
     path('admin/', admin.site.urls),
     path("api/", include("camunda_api.urls")),
+    path("api/", include("dean_managers.urls")),
     path('api/faq/', include('faq.urls')),
     path('api/faq-requests/', include('faq_requests.urls')),
     path("api/students/", include("students.urls")),
