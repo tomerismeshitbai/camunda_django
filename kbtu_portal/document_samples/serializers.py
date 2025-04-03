@@ -1,5 +1,12 @@
 from rest_framework import serializers, generics
-from .models import InvitationLetter, CourseRegistrationApplication
+from .models import InvitationLetter, CourseRegistrationApplication, DocumentSample
+
+class DocumentSampleSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = DocumentSample
+        fields = '__all__'
+
+
 
 class CourseRegistrationApplicationSerializer(serializers.ModelSerializer):
     first_name = serializers.CharField(source='student.first_name', read_only=True)

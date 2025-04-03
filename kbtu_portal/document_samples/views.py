@@ -8,7 +8,16 @@ from rest_framework.permissions import IsAuthenticated
 from document_samples.utils.generate_invitation_pdf import generate_invitation_pdf
 from document_samples.utils.generate_invitation_2_pdf import generate_invitation_2_pdf
 from .serializers import InvitationLetterSerializer
+from rest_framework import viewsets
+from rest_framework import filters
+from .models import DocumentSample
+from .serializers import DocumentSampleSerializer
 
+class DocumentSampleViewSet(viewsets.ModelViewSet):
+    queryset = DocumentSample.objects.all()
+    serializer_class = DocumentSampleSerializer
+    filter_backends = (filters.SearchFilter,)  
+    search_fields = ('name', 'desc')
 
 
 class DownloadInvitationPDF(APIView):

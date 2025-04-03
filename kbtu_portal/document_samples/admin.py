@@ -1,6 +1,9 @@
 from django.contrib import admin
-from .models import Course, CourseRegistrationApplication, InvitationLetter
+from .models import Course, CourseRegistrationApplication, InvitationLetter, DocumentSample
 
+@admin.register(DocumentSample)
+class DocumentSampleAdmin(admin.ModelAdmin):
+    list_display = ('name', 'desc', 'file', 'created_at')
 
 @admin.register(Course)
 class CourseAdmin(admin.ModelAdmin):

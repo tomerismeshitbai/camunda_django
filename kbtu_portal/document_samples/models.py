@@ -3,6 +3,16 @@ from students.models import StudentProfile
 from datetime import date
 
 
+class DocumentSample(models.Model):
+    name = models.CharField(max_length=255, verbose_name="Name")
+    desc = models.TextField(verbose_name="Description", blank=True, null=True)
+    file = models.FileField(upload_to='documents/', verbose_name="File")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Created At")  
+
+    def __str__(self):
+        return self.name
+
+
 class Course(models.Model):
     code = models.CharField(max_length=10, unique=True)
     name = models.CharField(max_length=255)
