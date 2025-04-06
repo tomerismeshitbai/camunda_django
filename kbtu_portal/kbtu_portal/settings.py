@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     'document_samples',
     'dean_managers',
     'django_filters',
+    'e_queue',
 ]
 
 MIDDLEWARE = [
