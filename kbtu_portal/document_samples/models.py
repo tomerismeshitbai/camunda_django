@@ -43,7 +43,14 @@ class CourseRegistrationApplication(models.Model):
 
 
 class InvitationLetter(models.Model):
-    student = models.ForeignKey(StudentProfile, on_delete=models.CASCADE)
+    student = models.ForeignKey(StudentProfile, on_delete=models.SET_NULL, null=True, blank=True)
+    
+    first_name = models.CharField(max_length=100, blank=True)
+    last_name = models.CharField(max_length=100, blank=True)
+    middle_name = models.CharField(max_length=100, blank=True)
+    course = models.PositiveIntegerField(null=True, blank=True)
+    speciality = models.CharField(max_length=255, blank=True)
+    
     organization_name = models.CharField(max_length=255)  
     start_date = models.DateField()
     end_date = models.DateField()  
@@ -56,5 +63,8 @@ class InvitationLetter(models.Model):
         return date.today().year  
 
     def __str__(self):
-        return f"Приглашение для {self.student.user.get_full_name()} в {self.organization_name}"
+         if self.student and self.student.user:
+            return f"Приглашение для {self.student.user.get_full_name()} в {self.organization_name}"
+         else:
+            return f"Приглашение для неопределенного студента в {self.organization_name}"
 

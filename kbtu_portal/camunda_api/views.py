@@ -15,7 +15,6 @@ from .models import Task, Attachment
 from django.shortcuts import get_object_or_404
 import mimetypes
 
-
 class CamundaLoginView(APIView):
     def post(self, request):
         username = request.data.get("username")
@@ -33,8 +32,9 @@ class CamundaLoginView(APIView):
         except User.DoesNotExist:
             return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
 
-        user_id = user.id  
+        user_id = user.id
 
+        # Получаем данные пользователя из Camunda
         camunda_url = f"http://localhost:8080/engine-rest/user/{username}/profile"
         response = requests.get(camunda_url)
 
@@ -42,21 +42,46 @@ class CamundaLoginView(APIView):
             return Response({"error": "User not found in Camunda"}, status=status.HTTP_404_NOT_FOUND)
 
         role = None
-        student_profile = StudentProfile.objects.filter(user_id=user_id).first()
-        manager_profile = ManagerProfile.objects.filter(user_id=user_id).first()
+        user_data = {}
 
+        # Проверяем, есть ли профиль студента
+        student_profile = StudentProfile.objects.filter(user_id=user_id).first()
         if student_profile:
             role = "student"
-        elif manager_profile:
+            user_data = {
+                "id": student_profile.id,
+                "first_name": student_profile.first_name,
+                "last_name": student_profile.last_name,
+                "kbtu_id": student_profile.kbtu_id,
+                "email": student_profile.email,
+                "school": student_profile.school,
+                "speciality": student_profile.speciality,
+                "course": student_profile.course,
+                "telephone_number": student_profile.telephone_number
+            }
+
+        # Проверяем, есть ли профиль менеджера
+        manager_profile = ManagerProfile.objects.filter(user_id=user_id).first()
+        if manager_profile:
             role = "dean manager"
-        else:
+            user_data = {
+                "first_name": manager_profile.first_name,
+                "last_name": manager_profile.last_name,
+                "email": manager_profile.email,
+                "school": manager_profile.school,
+                "phone_number": manager_profile.phone_number,
+                "position": manager_profile.position
+            }
+
+        if role is None:
             role = "unknown"
 
         return Response({
             "message": "Login successful",
             "username": username,
             "user_id": user_id,
-            "role": role
+            "role": role,
+            "user_data": user_data
         }, status=status.HTTP_200_OK)
 
 
@@ -142,8 +167,12 @@ def complete_task(request, task_id):
     response = requests.post(f"{CAMUNDA_BASE_URL}/task/{task_id}/complete", json=data)
 
     if response.status_code in [200, 204]:
-        return Response({"message": "Задача завершена!"})
+        return Response({
+            "message": "Задача завершена!",
+            "request_data": request.data  
+        })
     return Response(response.json(), status=response.status_code)
+
 
 @api_view(["POST"])
 def upload_attachment(request, task_id):
@@ -195,3 +224,120 @@ def view_attachment(request, attachment_id):
     response = FileResponse(open(file_path, "rb"), content_type=file_mime_type)
     response["Content-Disposition"] = "inline" 
     return response
+
+@api_view(["GET"])
+def check_task_by_process_instance(request, process_instance_id):
+    # Получаем задачи по user_id и проверяем на "Documents Verification"
+    user_id = request.query_params.get("user_id", "DeanManager")  # Получаем user_id из параметров запроса
+    response = requests.get(f"http://localhost:8000/api/tasks/", params={"user_id": user_id})
+
+    if response.status_code == 200:
+        tasks = response.json()  # Получаем список задач
+
+        # Находим задачу с нужным name
+        for task in tasks:
+            if task.get("name") == "Documents Verification":
+                task_id = task.get("id")
+                
+                # Получаем детали задачи
+                task_details_response = requests.get(f"http://127.0.0.1:8000/api/task/{task_id}")
+                
+                if task_details_response.status_code == 200:
+                    task_details = task_details_response.json()
+
+                    # Проверяем, есть ли sourceProcessId и совпадает ли он с переданным process_instance_id
+                    source_process_id = task_details.get("sourceProcessId", {}).get("value")
+                    
+                    if source_process_id == process_instance_id:
+                        return Response({
+                            "message": "Задача найдена!",
+                            "task_id": task_id,
+                            "process_instance_id": process_instance_id
+                        }, status=200)
+                    else:
+                        return Response({
+                            "message": "SourceProcessId не совпадает с переданным processInstanceId"
+                        }, status=400)
+                else:
+                    return Response({
+                        "message": "Ошибка при получении деталей задачи",
+                        "error": task_details_response.json()
+                    }, status=task_details_response.status_code)
+        
+        return Response({"message": "Задача 'Documents Verification' не найдена"}, status=404)
+
+    return Response({
+        "message": "Ошибка при получении списка задач",
+        "error": response.json()
+    }, status=response.status_code)
+    
+@api_view(["GET"])
+def check_provide_comments_task(request, process_instance_id):
+    user_id = request.query_params.get("user_id", "DeanManager")  # Получаем user_id из параметров запроса
+    response = requests.get(f"http://localhost:8000/api/tasks/", params={"user_id": user_id})
+
+    if response.status_code == 200:
+        tasks = response.json()  # Получаем список задач
+
+        # Находим задачу с нужным name
+        for task in tasks:
+            if task.get("name") == "Provide comments":
+                task_id = task.get("id")
+
+                # Получаем детали задачи
+                task_details_response = requests.get(f"http://127.0.0.1:8000/api/task/{task_id}")
+
+                if task_details_response.status_code == 200:
+                    task_details = task_details_response.json()
+
+                    # Проверяем, есть ли sourceProcessId и совпадает ли он с переданным process_instance_id
+                    source_process_id = task_details.get("sourceProcessId", {}).get("value")
+
+                    if source_process_id == process_instance_id:
+                        return Response({
+                            "message": "Задача 'Provide comments' найдена!",
+                            "task_id": task_id,
+                            "process_instance_id": process_instance_id
+                        }, status=200)
+                    else:
+                        return Response({
+                            "message": "SourceProcessId не совпадает с переданным processInstanceId"
+                        }, status=400)
+                else:
+                    return Response({
+                        "message": "Ошибка при получении деталей задачи",
+                        "error": task_details_response.json()
+                    }, status=task_details_response.status_code)
+
+        return Response({"message": "Задача 'Provide comments' не найдена"}, status=404)
+
+    return Response({
+        "message": "Ошибка при получении списка задач",
+        "error": response.json()
+    }, status=response.status_code)
+    
+@api_view(["GET"])
+def check_process_status(request, process_instance_id):
+    # Запрос к Camunda API для получения информации о процессе
+    response = requests.get(f"http://localhost:8080/engine-rest/process-instance/{process_instance_id}")
+
+    if response.status_code == 200:
+        process_info = response.json()
+
+        # Проверяем, активен ли процесс
+        if process_info.get("ended", False):
+            return Response({
+                "message": "Процесс завершён",
+                "process_instance_id": process_instance_id
+            }, status=status.HTTP_200_OK)
+        else:
+            return Response({
+                "message": "Процесс активен",
+                "process_instance_id": process_instance_id
+            }, status=status.HTTP_200_OK)
+    else:
+        return Response({
+            "message": "Ошибка при получении статуса процесса",
+            "error": response.json()
+        }, status=response.status_code)
+

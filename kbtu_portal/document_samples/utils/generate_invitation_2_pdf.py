@@ -10,7 +10,13 @@ pdfmetrics.registerFont(TTFont('times', r'C:\Windows\Fonts\times.ttf'))
 def generate_invitation_2_pdf(invitation_id):
     """Генерирует PDF-приглашение на практику."""
     invitation = InvitationLetter.objects.get(pk=invitation_id)
-    
+
+    # Данные студента: сначала из вручную введённых, если их нет — из модели StudentProfile
+    first_name = invitation.first_name or (invitation.student.first_name if invitation.student else '')
+    last_name = invitation.last_name or (invitation.student.last_name if invitation.student else '')
+    middle_name = invitation.middle_name or (invitation.student.middle_name if invitation.student else '')
+    course = invitation.course or (invitation.student.course if invitation.student else '')
+    speciality = invitation.speciality or (invitation.student.speciality if invitation.student else '')
 
     # Создание HTTP-ответа с PDF-файлом
     response = HttpResponse(content_type='application/pdf')
@@ -26,9 +32,9 @@ def generate_invitation_2_pdf(invitation_id):
     p.setFont("times", 12)
     p.drawString(100, 770, f"Полное название организации: {invitation.organization_name}")
     p.drawString(100, 750, "согласны принять на преддипломную практику в соответствии с ")
-    p.drawString(100, 730, f"учебной программой студента  {invitation.student.course} года обучения по образовательной программе")
-    p.drawString(100, 710, f"{invitation.student.speciality} ШИТиИ")
-    p.drawString(100, 690, f"{invitation.student.last_name} {invitation.student.first_name} {invitation.student.middle_name}")
+    p.drawString(100, 730, f"учебной программой студента {course} года обучения по образовательной программе")
+    p.drawString(100, 710, f"{speciality} ШИТиИ")
+    p.drawString(100, 690, f"{last_name} {first_name} {middle_name}")
     p.drawString(100, 670, f"в период с {invitation.start_date} по {invitation.end_date}")
 
     # Подпись руководителя

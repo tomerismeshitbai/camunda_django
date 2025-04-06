@@ -17,7 +17,8 @@ class FAQRequest(models.Model):
         if self.published and self.answer: 
             FAQ.objects.get_or_create(
                 question=self.description,
-                answer=self.answer
+                answer=self.answer,
+                course=self.student.course 
             )
 
     def __str__(self):

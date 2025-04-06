@@ -9,7 +9,10 @@ from .views import (
     CamundaLogoutView,
     upload_attachment,
     view_attachment,
-    get_attachments
+    get_attachments,
+    check_task_by_process_instance,
+    check_provide_comments_task,
+    check_process_status  # Импортируем новый view для проверки состояния процесса
 )
 
 urlpatterns = [
@@ -21,7 +24,7 @@ urlpatterns = [
     path("login/", CamundaLoginView.as_view(), name='camunda_login'),
     path("logout/", CamundaLogoutView.as_view(), name='camunda_logout'),
     path('tasks/<int:task_id>/upload/attachments/', upload_attachment, name='upload_attachment'),
-    # path("tasks/<int:task_id>/attachments/", get_attachments, name="get_attachments"),
-    # path("attachments/<int:attachment_id>/view/", view_attachment, name="view_attachment"),
-
+    path("tasks/<str:process_instance_id>/check-task/", check_task_by_process_instance, name="check-task-by-process-instance"),
+    path("tasks/<str:process_instance_id>/check-comment/", check_provide_comments_task, name="check-task-by-provide-comment"),  
+    path("process/<str:process_instance_id>/check-status/", check_process_status, name="check-process-status"), 
 ]

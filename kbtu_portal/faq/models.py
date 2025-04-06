@@ -4,7 +4,7 @@ from django.utils import timezone
 class FAQ(models.Model):
     question = models.TextField()
     answer = models.TextField()
-    course = models.IntegerField(default=4)
+    course = models.IntegerField()
     published = models.BooleanField(default=True)
     # created_at = models.DateTimeField(auto_now_add=True)
 

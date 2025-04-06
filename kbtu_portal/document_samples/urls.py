@@ -14,7 +14,7 @@ router.register(r'documents', DocumentSampleViewSet)
 
 
 urlpatterns = [
-    path('invitation/<int:pk>/pdf/', DownloadInvitationPDF.as_view(), name='invitation-pdf'),  
+    path('invitation/<int:pk>/pdf/', DownloadInvitationPDF.as_view(), name='invitation-pdf'),
     path('invitation_prediploma/<int:pk>/pdf/', DownloadPreDiplomaInvitationPDF.as_view(), name='invitation-pdf'), 
     path('invitation/create/', InvitationLetterCreateView.as_view(), name='invitation-create'), 
     path('invitations/', InvitationLetterListView.as_view(), name='invitation-list'),  
